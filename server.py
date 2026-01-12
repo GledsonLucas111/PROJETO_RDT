@@ -1,4 +1,6 @@
 import socket
+import time
+
 
 SERVER_PORT = 5000
 
@@ -23,16 +25,17 @@ def main():
             
             # Formato esperado: "seq|checksum|conteudo"
             try:
-                seq_str, chk_str, dados = msg_decoded.split("|", 2)
-                seq_recebida = int(seq_str)
-                check_recebido = int(chk_str)
+                parts = msg_decoded.split("|", 3)
+                seq_recebida = int(parts[0])
+                check_recebido = int(parts[1])
+                flag_atraso = int(parts[2])  # 0 para normal, 1 para atraso
+                dados = parts[3]
             except ValueError:
                 print(f"\n[SERVIDOR] Erro de formatação no pacote: {msg_decoded}")
                 continue
 
             # Calcula o checksum local para verificar integridade
             check_calc = checksum(dados)
-
             print(f"\n[SERVIDOR] Recebido: Seq={seq_recebida} | Dados='{dados}' | ChecksumRecebido={check_recebido}")
 
             # 1. Verifica Corrupção
@@ -41,7 +44,10 @@ def main():
                 print("[SERVIDOR] Ação: Ignorar pacote (não enviar ACK).")
                 # No RDT 3.0, corrupção = silêncio. O cliente dará timeout.
                 continue
-            
+            # 2. Verifica a Flag de Atraso enviada pelo Cliente 
+            if flag_atraso == 1:
+                print("[SERVIDOR] ⏳ Flag de atraso detectada! Dormindo 5s...")
+                time.sleep(5) # Maior que o timeout do cliente
             # 2. Verifica Número de Sequência
             if seq_recebida == seq_esperada:
                 print(f"[SERVIDOR] ✅ Pacote íntegro e na sequência correta ({seq_recebida}).")
